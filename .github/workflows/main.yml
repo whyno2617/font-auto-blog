@@ -2,7 +2,7 @@ name: Auto Font Post
 on:
   push:
     paths:
-      - 'fonts/**/*.woff2'
+      - 'fonts/**'
 
 jobs:
   build:
@@ -23,11 +23,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install google-generativeai google-api-python-client google-auth-oauthlib google-auth requests beautifulsoup4
+          pip install google-genai google-api-python-client google-auth-oauthlib google-auth requests beautifulsoup4
 
       - name: Run Script
         env:
