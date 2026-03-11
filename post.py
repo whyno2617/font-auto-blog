@@ -9,7 +9,8 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -19,7 +20,7 @@ GEMINI_API_KEY = os.environ['GEMINI_API_KEY']
 BLOG_ID        = os.environ['BLOG_ID']
 TOKEN_JSON     = os.environ['TOKEN_JSON']
 GH_PAT         = os.environ['GH_PAT']
-GH_REPO        = os.environ['GH_REPO']  # whyno2617/whyno_freefont
+GH_REPO        = os.environ['GH_REPO']
 
 CDN_BASE = "https://cdn.jsdelivr.net/gh/whyno2617/whyno_freefont@main"
 
@@ -29,19 +30,19 @@ WEIGHT_MAP = {
     "ExtraLight": 200, "Thin": 100
 }
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 # ── 1. 새로 추가된 폰트 폴더 감지 ────────────────
 def get_new_font_folder():
     result = subprocess.run(
-        ['git', 'diff', '--name-only', 'HEAD~1', 'HEAD'],
+        ['git', 'diff', '--name-only', '--diff-filter=ACMR', 'HEAD~1', 'HEAD'],
         capture_output=True, text=True
     )
     changed = result.stdout.strip().split('\n')
     folders = set()
     for f in changed:
-        if f.startswith('fonts/') and f.endswith('.woff2'):
+        f = f.strip()
+        if f.startswith('fonts/'):
             parts = Path(f).parts
             if len(parts) >= 3:
                 folders.add(parts[1])
@@ -61,9 +62,9 @@ def copy_to_freefont(folder_name):
         print(f"📋 복사: {woff2} → {dest}")
 
     if not copied:
+        print(f"⚠️ 복사할 woff2 파일 없음: {folder_name}")
         return False
 
-    # git 커밋 & 푸시
     subprocess.run(['git', 'config', 'user.email', 'action@github.com'], cwd='whyno_freefont')
     subprocess.run(['git', 'config', 'user.name', 'GitHub Actions'], cwd='whyno_freefont')
     subprocess.run(['git', 'add', '.'], cwd='whyno_freefont')
@@ -74,7 +75,7 @@ def copy_to_freefont(folder_name):
         'main'
     ], cwd='whyno_freefont')
 
-    print(f"✅ whyno_freefont에 푸시 완료: {folder_name}")
+    print(f"✅ whyno_freefont 푸시 완료: {folder_name}")
     return True
 
 # ── 3. 눈누 크롤링 ────────────────────────────────
@@ -229,17 +230,21 @@ SECTIONS:
 
     if image_path:
         with open(image_path, 'rb') as f:
-            image_data = base64.b64encode(f.read()).decode()
+            image_bytes = f.read()
         ext  = Path(image_path).suffix.lstrip('.')
         mime = 'image/jpeg' if ext in ['jpg', 'jpeg'] else 'image/png'
-        response = model.generate_content([
-            {"role": "user", "parts": [
-                {"text": prompt},
-                {"inline_data": {"mime_type": mime, "data": image_data}}
-            ]}
-        ])
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=image_bytes, mime_type=mime)
+            ]
+        )
     else:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt
+        )
 
     text = response.text.strip()
 
@@ -351,21 +356,17 @@ if __name__ == '__main__':
         font_name = folder_name
         print(f"\n🔍 처리 중: {font_name}")
 
-        # woff2를 whyno_freefont에 복사
         copy_to_freefont(folder_name)
 
-        # 눈누 크롤링
         font_info = crawl_noonnu(font_name)
         if not font_info:
             print(f"⚠️ {font_name} — 눈누 정보 없음. 초안으로 저장합니다.")
 
-        # 굵기 목록
         weights = get_weights_from_folder(folder_name)
         if not weights:
             print(f"❌ {font_name} — woff2 파일 없음. 건너뜁니다.")
             continue
 
-        # Gemini HTML 생성
         label, sections_html, categories, download_url, is_draft = generate_sections(
             font_name, folder_name, font_info, weights
         )
@@ -373,7 +374,6 @@ if __name__ == '__main__':
         all_labels = [label] + categories
         print(f"📝 라벨: {all_labels}")
 
-        # HTML 조립 및 포스팅
         full_html = build_full_html(
             font_name, folder_name, weights, sections_html, download_url
         )
