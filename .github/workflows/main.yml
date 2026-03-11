@@ -1,8 +1,6 @@
 name: Auto Font Post
 on:
-  push:
-    paths:
-      - 'fonts/**' # fonts 폴더에 파일이 추가될 때만 작동
+  workflow_dispatch: # 직접 실행 버튼을 만듭니다
 
 jobs:
   build:
@@ -21,4 +19,4 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           BLOG_ID: ${{ secrets.BLOG_ID }}
           CLIENT_SECRETS_JSON: ${{ secrets.CLIENT_SECRETS_JSON }}
-        run: python upload_font.py
+        run: python auth.py
