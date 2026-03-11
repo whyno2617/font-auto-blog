@@ -1,1 +1,24 @@
+name: Auto Font Post
+on:
+  push:
+    paths:
+      - 'fonts/**' # fonts 폴더에 파일이 추가될 때만 작동
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          pip install google-generativeai google-api-python-client google-auth-oauthlib
+      - name: Run Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BLOG_ID: ${{ secrets.BLOG_ID }}
+          CLIENT_SECRETS_JSON: ${{ secrets.CLIENT_SECRETS_JSON }}
+        run: python upload_font.py
