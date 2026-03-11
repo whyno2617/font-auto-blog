@@ -34,25 +34,22 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 # ── 1. 새로 추가된 폰트 폴더 감지 ────────────────
 def get_new_font_folder():
-    # 디버그: git log 확인
-    log = subprocess.run(
-        ['git', 'log', '--oneline', '-3'],
-        capture_output=True, text=True
-    )
-    print(f"[DEBUG] git log:\n{log.stdout}")
-
-    # 디버그: diff 결과 확인
     result = subprocess.run(
         ['git', 'diff', '--name-only', '--diff-filter=ACMR', 'HEAD~1', 'HEAD'],
         capture_output=True, text=True
     )
     print(f"[DEBUG] git diff 결과:\n{result.stdout}")
-    print(f"[DEBUG] git diff 오류:\n{result.stderr}")
 
     changed = result.stdout.strip().split('\n')
     folders = set()
     for f in changed:
-        f = f.strip()
+        # 따옴표 제거 + 유니코드 이스케이프 디코딩
+        f = f.strip().strip('"')
+        try:
+            f = f.encode('raw_unicode_escape').decode('unicode_escape').encode('latin1').decode('utf-8')
+        except Exception:
+            pass
+        print(f"[DEBUG] 처리된 경로: {f}")
         if f.startswith('fonts/'):
             parts = Path(f).parts
             if len(parts) >= 3:
