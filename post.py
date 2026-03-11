@@ -244,7 +244,7 @@ SECTIONS:
         ext  = Path(image_path).suffix.lstrip('.')
         mime = 'image/jpeg' if ext in ['jpg', 'jpeg'] else 'image/png'
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.0-flash',
             contents=[
                 prompt,
                 types.Part.from_bytes(data=image_bytes, mime_type=mime)
@@ -252,7 +252,7 @@ SECTIONS:
         )
     else:
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.0-flash',
             contents=prompt
         )
 
